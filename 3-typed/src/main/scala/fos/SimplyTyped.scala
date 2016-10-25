@@ -144,11 +144,11 @@ object SimplyTyped extends StandardTokenParsers {
     case App(Abs(x, tp, t1), t2) if isValue(t2) => subst(t1, x, t2)
     case App(t1, t2) => if (isValue(t1)) App(t1, reduce(t2)) else App(reduce(t1), t2)
     case First(t1) => t1 match {
-      case TermPair(ta, tb) if isValue(t1) => ta
+      case TermPair(t11, _) if isValue(t1) => t11
       case _ => First(reduce(t1))
     }
     case Second(t1) => t1 match {
-      case TermPair(ta, tb) if isValue(t1) => tb
+      case TermPair(_, t12) if isValue(t1) => t12
       case _ => Second(reduce(t1))
     }
     case TermPair(t1, t2) => if (isValue(t1))
@@ -180,65 +180,66 @@ object SimplyTyped extends StandardTokenParsers {
    *  @return    the computed type
    */
   def typeof(ctx: Context, t: Term): Type = t match {
-    case True() | False() => 
+    case True() | False() =>
       TypeBool
-    case Zero() => 
+    case Zero() =>
       TypeNat
-    case Pred(t1) => 
-      if (typeof(ctx, t1) == TypeNat) 
-        TypeNat 
-      else 
-        throw TypeError(t, "Should be a typeNat")
-    case Succ(t1) => 
-      if (typeof(ctx, t1) == TypeNat) 
-        TypeNat 
-      else 
-        throw TypeError(t, "Should be a typeNat")
-    case IsZero(t1) => 
-      if (typeof(ctx, t1) == TypeNat) 
-        TypeBool 
-      else 
-        throw TypeError(t, "Should be a typeNat")
-    case If(cond, t1, t2) => 
+    case Pred(t1) =>
+      if (typeof(ctx, t1) == TypeNat)
+        TypeNat
+      else
+        throw TypeError(t, t+ " should be a TypeNat")
+    case Succ(t1) =>
+      if (typeof(ctx, t1) == TypeNat)
+        TypeNat
+      else
+        throw TypeError(t, t + " should be a TypeNat")
+    case IsZero(t1) =>
+      if (typeof(ctx, t1) == TypeNat)
+        TypeBool
+      else
+        throw TypeError(t, t + " should be a TypeNat")
+    case If(cond, t1, t2) =>
       typeof(ctx, cond) match {
-        case TypeBool => 
+        case TypeBool =>
           val tp1 = typeof(ctx, t1)
             if (tp1 == typeof(ctx, t2))
                tp1
             else
-              throw TypeError(t, "Should be the same type as the else part")
-        case _ => throw TypeError(t, "Should be a Boolean type")
+              throw TypeError(t, t1 + " and " + t2 + " should have the same type")
+        case _ => throw TypeError(t, cond + " should be a TypeBool")
       }
     case Abs(x, tp, t1) => TypeFun(tp, typeof((x, tp) :: ctx, t1))
-    case App(t1, t2) => 
+    case App(t1, t2) =>
       typeof(ctx, t1) match {
-        case TypeFun(t11, t12)  => 
+        case TypeFun(t11, t12)  =>
           if (typeof(ctx, t2) == t11)
             t12
           else
             throw TypeError(t, "Types do not match with the function")
-        case _ => throw TypeError(t, "Should be a function type")
+        case _ => throw TypeError(t, t1 + " should be a TypeFun")
       }
-    case TermPair(t1, t2) => 
+    case TermPair(t1, t2) =>
       TypePair(typeof(ctx, t1), typeof(ctx, t2))
-    case First(t) => 
-      typeof(ctx, t) match {
+    case First(t1) =>
+      typeof(ctx, t1) match {
         case TypePair(tp1, tp2) => tp1
-        case _ => throw TypeError(t, "Should be a pair")
+        case _ => throw TypeError(t, t1 + " should be a pair")
       }
-    case Second(t) => 
-      typeof(ctx, t) match {
+    case Second(t1) =>
+      typeof(ctx, t1) match {
         case TypePair(tp1, tp2) => tp2
-        case _ => throw TypeError(t, "Should be a pair")
+        case _ => throw TypeError(t, t1 + " should be a pair")
       }
-    case Var(x) => 
-      val tp = ctx.find(_._1 == x).get._2
-      if (tp != None)
-        tp
-      else
-        throw TypeError(t, "Undefined variable")
-    case _ => 
-      throw TypeError(t, "term is stuck !")
+    case Var(x) =>
+      try {
+        ctx.find(_._1 == x).get._2
+      }
+      catch {
+        case _ => throw TypeError(t, x + " has not type")
+      }
+    case _ =>
+      throw TypeError(t, "Term is stuck !")
   }
 
   def getVarType(ctx: Context, x: String): Type = ctx.find(_._1 == x).get._2
