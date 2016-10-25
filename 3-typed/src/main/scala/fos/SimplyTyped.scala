@@ -185,7 +185,28 @@ object SimplyTyped extends StandardTokenParsers {
     case Pred(t1) => if (typeof(ctx, t1) == TypeNat) TypeNat else throw TypeError(t, "Should be a typeNat")
     case Succ(t1) => if (typeof(ctx, t1) == TypeNat) TypeNat else throw TypeError(t, "Should be a typeNat")
     case IsZero(t1) => if (typeof(ctx, t1) == TypeNat) TypeBool else throw TypeError(t, "Should be a typeNat")
-    case If(cond, t1, t2) => val ctx0 = forceCtx(ctx, cond, TypeBool)
+    case If(cond, t1, t2) => typeof(ctx, cond) match {
+      case TypeBool => val tp1 = typeof(ctx, t1)
+                        if (tp1 == typeof(ctx, t2))
+                          tp1
+                        else
+                          throw TypeError(t, "Should be the same type as the else part")
+      case _ => throw TypeError(t, "Should be a Boolean type")
+     }
+    case Abs(x, tp, t1) => TypeFun(tp, typeof(ctx :+ (x, tp), t1))
+    case App(t1, t2) => typeof(ctx, t1) match {
+      case TypeFun(t11, t12)  => if (typeof(ctx, t2) == t11)
+                                 t12
+                               else
+                                 throw TypeError(t, "Types do not match with the function")
+      case _ => throw TypeError(t, "Should be a function type")
+     }
+    case TermPair(t1, t2) => TypePair(typeof(ctx, t1), typeof(ctx, t2))
+    case First(TermPair(t1, t2)) => typeof(ctx, t1)
+    case Second(TermPair(t1, t2)) => typeof(ctx, t2)
+    case Var(x) => ctx.find(_._1 == x).get._2
+    case _ => throw TypeError(t, "term is stuck !")
+    /*case If(cond, t1, t2) => val ctx0 = forceCtx(ctx, cond, TypeBool)
                              var tp1 = Nil
                              Type tp2
                              try {
@@ -231,10 +252,10 @@ object SimplyTyped extends StandardTokenParsers {
                                    throw TypeError(t, "Types do not match with the function")
       case _ => throw TypeError(t1, "Should be a function type")
     }
-    case _ => throw TypeError(t, "term is stuck !")
+    case _ => throw TypeError(t, "term is stuck !")*/
   }
   
-  def forceCtx(ctx: Context, t: Term, tp: Type): Context = t match {
+  /*def forceCtx(ctx: Context, t: Term, tp: Type): Context = t match {
     case True() | False() => if (tp == TypeBool) ctx else throw TypeError(t, "Should be forced to typeBool")
     case Zero() => if (tp == TypeNat) ctx else throw TypeError(t, "Should be forced to typeNat")
     case Pred(t1) => if (tp == TypeNat) forceCtx(ctx, t1, TypeNat) else throw TypeError(t, "Should be forced to typeNat")
@@ -259,7 +280,7 @@ object SimplyTyped extends StandardTokenParsers {
                             }
     // TODO complete other cases
     case _ => throw TypeError(t, "Not implemented for now")
-  }
+  }*/
 
   def getVarType(ctx: Context, x: String): Type = ctx.find(_._1 == x).get._2
 
