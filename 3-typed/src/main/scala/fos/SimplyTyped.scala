@@ -180,107 +180,66 @@ object SimplyTyped extends StandardTokenParsers {
    *  @return    the computed type
    */
   def typeof(ctx: Context, t: Term): Type = t match {
-    case True() | False() => TypeBool
-    case Zero() => TypeNat
-    case Pred(t1) => if (typeof(ctx, t1) == TypeNat) TypeNat else throw TypeError(t, "Should be a typeNat")
-    case Succ(t1) => if (typeof(ctx, t1) == TypeNat) TypeNat else throw TypeError(t, "Should be a typeNat")
-    case IsZero(t1) => if (typeof(ctx, t1) == TypeNat) TypeBool else throw TypeError(t, "Should be a typeNat")
-    case If(cond, t1, t2) => typeof(ctx, cond) match {
-      case TypeBool => val tp1 = typeof(ctx, t1)
-                        if (tp1 == typeof(ctx, t2))
-                          tp1
-                        else
-                          throw TypeError(t, "Should be the same type as the else part")
-      case _ => throw TypeError(t, "Should be a Boolean type")
-     }
-    case Abs(x, tp, t1) => TypeFun(tp, typeof(ctx :+ (x, tp), t1))
-    case App(t1, t2) => typeof(ctx, t1) match {
-      case TypeFun(t11, t12)  => if (typeof(ctx, t2) == t11)
-                                 t12
-                               else
-                                 throw TypeError(t, "Types do not match with the function")
-      case _ => throw TypeError(t, "Should be a function type")
-     }
-    case TermPair(t1, t2) => TypePair(typeof(ctx, t1), typeof(ctx, t2))
-    case First(TermPair(t1, t2)) => typeof(ctx, t1)
-    case Second(TermPair(t1, t2)) => typeof(ctx, t2)
-    case Var(x) => ctx.find(_._1 == x).get._2
-    case _ => throw TypeError(t, "term is stuck !")
-    /*case If(cond, t1, t2) => val ctx0 = forceCtx(ctx, cond, TypeBool)
-                             var tp1 = Nil
-                             Type tp2
-                             try {
-                               tp1 = typeof(ctx0, t1)
-                             } catch {
-                               case TypeError(_, "Couldn't assign a type") => tp1 = None
-                             }
-                             try {
-                               val tp2 = typeof(ctx0, t2)
-                             } catch {
-                               case TypeError(_, "Couldn't assign a type") => val tp2 = None
-                             }
-                             if (tp1 != None){
-                               if (tp2 != None){
-                                 if (tp1 == tp2){
-                                   tp1
-                                 } else {
-                                   throw TypeError(t, "Should be the same type as the else part")
-                                 }
-                               } else {
-                                 val ctx2 = forceCtx(ctx0, t2, tp1)
-                                 tp1
-                               }
-                             }
-      
-      
+    case True() | False() => 
+      TypeBool
+    case Zero() => 
+      TypeNat
+    case Pred(t1) => 
+      if (typeof(ctx, t1) == TypeNat) 
+        TypeNat 
+      else 
+        throw TypeError(t, "Should be a typeNat")
+    case Succ(t1) => 
+      if (typeof(ctx, t1) == TypeNat) 
+        TypeNat 
+      else 
+        throw TypeError(t, "Should be a typeNat")
+    case IsZero(t1) => 
+      if (typeof(ctx, t1) == TypeNat) 
+        TypeBool 
+      else 
+        throw TypeError(t, "Should be a typeNat")
+    case If(cond, t1, t2) => 
       typeof(ctx, cond) match {
-      case TypeBool => val tp1 = typeof(ctx, t1)
-                       if (tp1 == typeof(ctx, t2))
-                         tp1
-                       else
-                         throw TypeError(t, "Should be the same type as the else part")
-      case _ => throw TypeError(t, "Should be a Boolean type")
-    }
-    case Var(x) => val tp = getVarType(ctx, x)
-                   if (tp != None) tp else throw TypeError(t, "Couldn't assign a type")
-
-    case Abs(x, tp, t1) => TypeFun(tp, typeof(ctx, t1))
-    case App(t1, t2) => typeof(ctx, t1) match {
-      case TypeFun(t11, t12)  => if (typeof(ctx, t2) == t11)
-                                   t12
-                                 else
-                                   throw TypeError(t, "Types do not match with the function")
-      case _ => throw TypeError(t1, "Should be a function type")
-    }
-    case _ => throw TypeError(t, "term is stuck !")*/
+        case TypeBool => 
+          val tp1 = typeof(ctx, t1)
+            if (tp1 == typeof(ctx, t2))
+               tp1
+            else
+              throw TypeError(t, "Should be the same type as the else part")
+        case _ => throw TypeError(t, "Should be a Boolean type")
+      }
+    case Abs(x, tp, t1) => TypeFun(tp, typeof((x, tp) :: ctx, t1))
+    case App(t1, t2) => 
+      typeof(ctx, t1) match {
+        case TypeFun(t11, t12)  => 
+          if (typeof(ctx, t2) == t11)
+            t12
+          else
+            throw TypeError(t, "Types do not match with the function")
+        case _ => throw TypeError(t, "Should be a function type")
+      }
+    case TermPair(t1, t2) => 
+      TypePair(typeof(ctx, t1), typeof(ctx, t2))
+    case First(t) => 
+      typeof(ctx, t) match {
+        case TypePair(tp1, tp2) => tp1
+        case _ => throw TypeError(t, "Should be a pair")
+      }
+    case Second(t) => 
+      typeof(ctx, t) match {
+        case TypePair(tp1, tp2) => tp2
+        case _ => throw TypeError(t, "Should be a pair")
+      }
+    case Var(x) => 
+      val tp = ctx.find(_._1 == x).get._2
+      if (tp != None)
+        tp
+      else
+        throw TypeError(t, "Undefined variable")
+    case _ => 
+      throw TypeError(t, "term is stuck !")
   }
-  
-  /*def forceCtx(ctx: Context, t: Term, tp: Type): Context = t match {
-    case True() | False() => if (tp == TypeBool) ctx else throw TypeError(t, "Should be forced to typeBool")
-    case Zero() => if (tp == TypeNat) ctx else throw TypeError(t, "Should be forced to typeNat")
-    case Pred(t1) => if (tp == TypeNat) forceCtx(ctx, t1, TypeNat) else throw TypeError(t, "Should be forced to typeNat")
-    case Succ(t1) => if (tp == TypeNat) forceCtx(ctx, t1, TypeNat) else throw TypeError(t, "Should be forced to typeNat")
-    case IsZero(t1) => if (tp == TypeBool) forceCtx(ctx, t1, TypeNat) else throw TypeError(t, "Should be forced to typeBool")
-    case If(cond, t1, t2) => val ctx0 = forceCtx(ctx, cond, TypeBool)
-                             val ctx1 = forceCtx(ctx0, t1, tp) 
-                             forceCtx(ctx1, t2, tp)
-    case Var(x) => val tp1 = getVarType(ctx, x)
-                   if (tp1 == None) ctx :+ (x, tp)
-                   else
-                     tp1 match {
-                       case tp => ctx
-                       case _ => throw TypeError(t, "Should be of type" + tp)
-                     }
-    case Abs(x, tp0, t1) => tp match {
-                              case TypeFun(tp1, tp2) => if (tp1 == tp0) {
-                                                          val ctx0 = forceCtx(ctx, Var(x), tp1)
-                                                          forceCtx(ctx0, t1, tp2)
-                                                        } else throw TypeError(t, "Should be forced to " + tp)
-                              case _ => throw TypeError(t, "Incorrect Abs type")
-                            }
-    // TODO complete other cases
-    case _ => throw TypeError(t, "Not implemented for now")
-  }*/
 
   def getVarType(ctx: Context, x: String): Type = ctx.find(_._1 == x).get._2
 
