@@ -4,56 +4,56 @@ import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.input._
 
 /** This object implements a parser and evaluator for the
- *  simply typed lambda calculus found in Chapter 9 of
- *  the TAPL book.
- */
+  * simply typed lambda calculus found in Chapter 9 of
+  * the TAPL book.
+  */
 object SimplyTyped extends StandardTokenParsers {
   lexical.delimiters ++= List("(", ")", "\\", ".", ":", "=", "->", "{", "}", ",", "*")
-  lexical.reserved   ++= List("Bool", "Nat", "true", "false", "if", "then", "else", "succ",
-                              "pred", "iszero", "let", "in", "fst", "snd")
+  lexical.reserved ++= List("Bool", "Nat", "true", "false", "if", "then", "else", "succ",
+    "pred", "iszero", "let", "in", "fst", "snd")
 
   /** Term     ::= SimpleTerm { SimpleTerm }
-   */
+    */
   def Term: Parser[Term] = subterm ~ rep(subterm) ^^ reduceTerm
 
   def subterm: Parser[Term] = (
-      "true" ^^ (_ => True())
+    "true" ^^ (_ => True())
       | "false" ^^ (_ => False())
-      | "if" ~ Term ~ "then" ~ Term ~ "else" ~ Term ^^ {case _ ~ t1 ~_ ~ t2 ~ _ ~ t3 => If(t1, t2, t3)}
-      | numericLit ^^ {x => numTerm(x.toInt)}
+      | "if" ~ Term ~ "then" ~ Term ~ "else" ~ Term ^^ { case _ ~ t1 ~ _ ~ t2 ~ _ ~ t3 => If(t1, t2, t3) }
+      | numericLit ^^ { x => numTerm(x.toInt) }
       | "pred" ~> Term ^^ Pred
       | "succ" ~> Term ^^ Succ
       | "iszero" ~> Term ^^ IsZero
       | ident ^^ Var
-      | "\\" ~ ident ~ ":" ~ typ ~ "." ~ Term ^^ {case _ ~ v ~ _ ~ tp ~ _ ~ t => Abs(v, tp, t)}
-      | "(" ~ Term ~ ")" ^^ {case _ ~ t ~ _ => t}
-      | "let" ~ ident ~ ":" ~ typ ~ "=" ~ Term ~ "in" ~ Term ^^ {case _ ~ x ~ _ ~ tp ~ _ ~ t1 ~ _ ~ t2 => App(Abs(x, tp, t2), t1)}
-      | "{" ~ Term ~ "," ~ Term ~ "}" ^^ {case _ ~ t1 ~ _ ~ t2 ~ _ => TermPair(t1, t2)}
+      | "\\" ~ ident ~ ":" ~ typ ~ "." ~ Term ^^ { case _ ~ v ~ _ ~ tp ~ _ ~ t => Abs(v, tp, t) }
+      | "(" ~ Term ~ ")" ^^ { case _ ~ t ~ _ => t }
+      | "let" ~ ident ~ ":" ~ typ ~ "=" ~ Term ~ "in" ~ Term ^^ { case _ ~ x ~ _ ~ tp ~ _ ~ t1 ~ _ ~ t2 => App(Abs(x, tp, t2), t1) }
+      | "{" ~ Term ~ "," ~ Term ~ "}" ^^ { case _ ~ t1 ~ _ ~ t2 ~ _ => TermPair(t1, t2) }
       | "fst" ~> Term ^^ First
       | "snd" ~> Term ^^ Second
     )
 
-  val reduceTerm : Term ~ List[Term] => Term = {
+  val reduceTerm: Term ~ List[Term] => Term = {
     case i ~ ps => ps.fold(i)((t1, t2) => App(t1, t2))
   }
 
   def numTerm(n: Int): Term =
     if (n == 0) Zero()
     else
-      Succ(numTerm(n-1))
+      Succ(numTerm(n - 1))
 
   def typ: Parser[Type] = rep(typPair ~ "->") ~ typPair ^^ reduceType
 
   def typPair: Parser[Type] = rep(subtyp ~ "*") ~ subtyp ^^ reduceType
 
   def subtyp: Parser[Type] = (
-      "Bool" ^^^ TypeBool
+    "Bool" ^^^ TypeBool
       | "Nat" ^^^ TypeNat
-      | "(" ~ typ ~ ")" ^^ {case _ ~ t ~ _ => t}
+      | "(" ~ typ ~ ")" ^^ { case _ ~ t ~ _ => t }
     )
 
-  val reduceType : List[Type ~ String] ~ Type => Type = {
-    case xs ~ x => xs.foldRight(x){
+  val reduceType: List[Type ~ String] ~ Type => Type = {
+    case xs ~ x => xs.foldRight(x) {
       case (t1 ~ "->", t2) => TypeFun(t1, t2)
       case (t1 ~ "*", t2) => TypePair(t1, t2)
     }
@@ -93,13 +93,13 @@ object SimplyTyped extends StandardTokenParsers {
   }
 
   /** Straight forward substitution method
-    *  (see definition 5.3.5 in TAPL book).
-    *  [x -> s]t
+    * (see definition 5.3.5 in TAPL book).
+    * [x -> s]t
     *
-    *  @param t the term in which we perform substitution
-    *  @param x the variable name
-    *  @param s the term we replace x with
-    *  @return  ...
+    * @param t the term in which we perform substitution
+    * @param x the variable name
+    * @param s the term we replace x with
+    * @return ...
     */
   def subst(t: Term, x: String, s: Term): Term = t match {
     case Var(y) => if (y == x) s else Var(y)
@@ -111,7 +111,7 @@ object SimplyTyped extends StandardTokenParsers {
         case Abs(z, typ, t2) => Abs(z, typ, subst(t2, x, s))
         case _ => Abs(y, tp, t1)
       }
-    case App(t1, t2) => App(subst(t1, x, s), subst(t2, x , s))
+    case App(t1, t2) => App(subst(t1, x, s), subst(t2, x, s))
     case Succ(t1) => Succ(subst(t1, x, s))
     case Pred(t1) => Pred(subst(t1, x, s))
     case IsZero(t1) => IsZero(subst(t1, x, s))
@@ -152,9 +152,9 @@ object SimplyTyped extends StandardTokenParsers {
       case _ => Second(reduce(t1))
     }
     case TermPair(t1, t2) => if (isValue(t1))
-                                TermPair(t1, reduce(t2))
-                              else
-                                TermPair(reduce(t1), t2)
+      TermPair(t1, reduce(t2))
+    else
+      TermPair(reduce(t1), t2)
     case _ => throw NoRuleApplies(t)
   }
 
@@ -174,11 +174,11 @@ object SimplyTyped extends StandardTokenParsers {
 
 
   /** Returns the type of the given term <code>t</code>.
-   *
-   *  @param ctx the initial context
-   *  @param t   the given term
-   *  @return    the computed type
-   */
+    *
+    * @param ctx the initial context
+    * @param t   the given term
+    * @return the computed type
+    */
   def typeof(ctx: Context, t: Term): Type = t match {
     case True() | False() =>
       TypeBool
@@ -188,31 +188,31 @@ object SimplyTyped extends StandardTokenParsers {
       if (typeof(ctx, t1) == TypeNat)
         TypeNat
       else
-        throw TypeError(t, t+ " should be a TypeNat")
+        throw TypeError(t, t1 + " should be a TypeNat")
     case Succ(t1) =>
       if (typeof(ctx, t1) == TypeNat)
         TypeNat
       else
-        throw TypeError(t, t + " should be a TypeNat")
+        throw TypeError(t, t1 + " should be a TypeNat")
     case IsZero(t1) =>
       if (typeof(ctx, t1) == TypeNat)
         TypeBool
       else
-        throw TypeError(t, t + " should be a TypeNat")
+        throw TypeError(t, t1 + " should be a TypeNat")
     case If(cond, t1, t2) =>
       typeof(ctx, cond) match {
         case TypeBool =>
           val tp1 = typeof(ctx, t1)
-            if (tp1 == typeof(ctx, t2))
-               tp1
-            else
-              throw TypeError(t, t1 + " and " + t2 + " should have the same type")
+          if (tp1 == typeof(ctx, t2))
+            tp1
+          else
+            throw TypeError(t, t1 + " and " + t2 + " should have the same type")
         case _ => throw TypeError(t, cond + " should be a TypeBool")
       }
     case Abs(x, tp, t1) => TypeFun(tp, typeof((x, tp) :: ctx, t1))
     case App(t1, t2) =>
       typeof(ctx, t1) match {
-        case TypeFun(t11, t12)  =>
+        case TypeFun(t11, t12) =>
           if (typeof(ctx, t2) == t11)
             t12
           else
@@ -242,23 +242,21 @@ object SimplyTyped extends StandardTokenParsers {
       throw TypeError(t, "Term is stuck !")
   }
 
-  def getVarType(ctx: Context, x: String): Type = ctx.find(_._1 == x).get._2
-
 
   /** Returns a stream of terms, each being one step of reduction.
-   *
-   *  @param t      the initial term
-   *  @param reduce the evaluation strategy used for reduction.
-   *  @return       the stream of terms representing the big reduction.
-   */
+    *
+    * @param t      the initial term
+    * @param reduce the evaluation strategy used for reduction.
+    * @return the stream of terms representing the big reduction.
+    */
   def path(t: Term, reduce: Term => Term): Stream[Term] =
-    try {
-      var t1 = reduce(t)
-      Stream.cons(t, path(t1, reduce))
-    } catch {
-      case NoRuleApplies(_) =>
-        Stream.cons(t, Stream.empty)
-    }
+  try {
+    var t1 = reduce(t)
+    Stream.cons(t, path(t1, reduce))
+  } catch {
+    case NoRuleApplies(_) =>
+      Stream.cons(t, Stream.empty)
+  }
 
   def main(args: Array[String]): Unit = {
     val stdin = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
