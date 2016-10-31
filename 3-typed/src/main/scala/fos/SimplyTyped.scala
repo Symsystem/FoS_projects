@@ -12,7 +12,9 @@ object SimplyTyped extends StandardTokenParsers {
   lexical.reserved ++= List("Bool", "Nat", "true", "false", "if", "then", "else", "succ",
     "pred", "iszero", "let", "in", "fst", "snd")
 
-  /** Term     ::= SimpleTerm { SimpleTerm }
+
+  /**
+    * The Term's parser.
     */
   def Term: Parser[Term] = subterm ~ rep(subterm) ^^ reduceTerm
 
@@ -42,6 +44,9 @@ object SimplyTyped extends StandardTokenParsers {
     else
       Succ(numTerm(n - 1))
 
+  /**
+    * The Type's parser.
+    */
   def typ: Parser[Type] = rep(typPair ~ "->") ~ typPair ^^ reduceType
 
   def typPair: Parser[Type] = rep(subtyp ~ "*") ~ subtyp ^^ reduceType
@@ -73,6 +78,10 @@ object SimplyTyped extends StandardTokenParsers {
 
   var counter = 0
 
+  /**
+    * @param t the term to apply the alpha-conversion
+    * @return the input term after applying the alpha-conversion.
+    */
   def alpha(t: Term): Term = t match {
     case Abs(s, tp, t1) => Abs(s + counter, tp, rename(s, t1))
     case _ => t
@@ -158,12 +167,20 @@ object SimplyTyped extends StandardTokenParsers {
     case _ => throw NoRuleApplies(t)
   }
 
+  /**
+    * @param t the given term to analyse
+    * @return true if t is a numeric value, false otherwise.
+    */
   def isNumericValue(t: Term): Boolean = t match {
     case Zero() => true
     case Succ(t1) => isNumericValue(t1)
     case _ => false
   }
 
+  /**
+    * @param t the given term to analyse
+    * @return true if t is a value, false otherwise.
+    */
   def isValue(t: Term): Boolean = t match {
     case t1 if isNumericValue(t1) => true
     case True() | False() => true
@@ -180,56 +197,46 @@ object SimplyTyped extends StandardTokenParsers {
     * @return the computed type
     */
   def typeof(ctx: Context, t: Term): Type = t match {
-    case True() | False() =>
-      TypeBool
-    case Zero() =>
-      TypeNat
-    case Pred(t1) =>
-      if (typeof(ctx, t1) == TypeNat)
+    case True() | False() => TypeBool
+    case Zero() => TypeNat
+    case Pred(t1) => if (typeof(ctx, t1) == TypeNat)
         TypeNat
       else
         throw TypeError(t, t1 + " should be a TypeNat")
-    case Succ(t1) =>
-      if (typeof(ctx, t1) == TypeNat)
+    case Succ(t1) => if (typeof(ctx, t1) == TypeNat)
         TypeNat
       else
         throw TypeError(t, t1 + " should be a TypeNat")
-    case IsZero(t1) =>
-      if (typeof(ctx, t1) == TypeNat)
+    case IsZero(t1) => if (typeof(ctx, t1) == TypeNat)
         TypeBool
       else
         throw TypeError(t, t1 + " should be a TypeNat")
-    case If(cond, t1, t2) =>
-      typeof(ctx, cond) match {
-        case TypeBool =>
+    case If(cond, t1, t2) => typeof(ctx, cond) match {
+      case TypeBool =>
           val tp1 = typeof(ctx, t1)
           if (tp1 == typeof(ctx, t2))
             tp1
           else
             throw TypeError(t, t1 + " and " + t2 + " should have the same type")
-        case _ => throw TypeError(t, cond + " should be a TypeBool")
+      case _ => throw TypeError(t, cond + " should be a TypeBool")
       }
     case Abs(x, tp, t1) => TypeFun(tp, typeof((x, tp) :: ctx, t1))
-    case App(t1, t2) =>
-      typeof(ctx, t1) match {
-        case TypeFun(t11, t12) =>
+    case App(t1, t2) => typeof(ctx, t1) match {
+      case TypeFun(t11, t12) =>
           if (typeof(ctx, t2) == t11)
             t12
           else
             throw TypeError(t, "Types do not match with the function")
-        case _ => throw TypeError(t, t1 + " should be a TypeFun")
+      case _ => throw TypeError(t, t1 + " should be a TypeFun")
       }
-    case TermPair(t1, t2) =>
-      TypePair(typeof(ctx, t1), typeof(ctx, t2))
-    case First(t1) =>
-      typeof(ctx, t1) match {
-        case TypePair(tp1, tp2) => tp1
-        case _ => throw TypeError(t, t1 + " should be a pair")
+    case TermPair(t1, t2) => TypePair(typeof(ctx, t1), typeof(ctx, t2))
+    case First(t1) => typeof(ctx, t1) match {
+      case TypePair(tp1, tp2) => tp1
+      case _ => throw TypeError(t, t1 + " should be a pair")
       }
-    case Second(t1) =>
-      typeof(ctx, t1) match {
-        case TypePair(tp1, tp2) => tp2
-        case _ => throw TypeError(t, t1 + " should be a pair")
+    case Second(t1) => typeof(ctx, t1) match {
+      case TypePair(tp1, tp2) => tp2
+      case _ => throw TypeError(t, t1 + " should be a pair")
       }
     case Var(x) =>
       try {
@@ -238,8 +245,7 @@ object SimplyTyped extends StandardTokenParsers {
       catch {
         case _ => throw TypeError(t, x + " has not type")
       }
-    case _ =>
-      throw TypeError(t, "Term is stuck !")
+    case _ => throw TypeError(t, "Term is stuck !")
   }
 
 
