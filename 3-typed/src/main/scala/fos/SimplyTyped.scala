@@ -200,44 +200,44 @@ object SimplyTyped extends StandardTokenParsers {
     case True() | False() => TypeBool
     case Zero() => TypeNat
     case Pred(t1) => if (typeof(ctx, t1) == TypeNat)
-        TypeNat
-      else
-        throw TypeError(t, t1 + " should be a TypeNat")
+      TypeNat
+    else
+      throw TypeError(t, t1 + " should be a TypeNat")
     case Succ(t1) => if (typeof(ctx, t1) == TypeNat)
-        TypeNat
-      else
-        throw TypeError(t, t1 + " should be a TypeNat")
+      TypeNat
+    else
+      throw TypeError(t, t1 + " should be a TypeNat")
     case IsZero(t1) => if (typeof(ctx, t1) == TypeNat)
-        TypeBool
-      else
-        throw TypeError(t, t1 + " should be a TypeNat")
+      TypeBool
+    else
+      throw TypeError(t, t1 + " should be a TypeNat")
     case If(cond, t1, t2) => typeof(ctx, cond) match {
       case TypeBool =>
-          val tp1 = typeof(ctx, t1)
-          if (tp1 == typeof(ctx, t2))
-            tp1
-          else
-            throw TypeError(t, t1 + " and " + t2 + " should have the same type")
+        val tp1 = typeof(ctx, t1)
+        if (tp1 == typeof(ctx, t2))
+          tp1
+        else
+          throw TypeError(t, t1 + " and " + t2 + " should have the same type")
       case _ => throw TypeError(t, cond + " should be a TypeBool")
-      }
+    }
     case Abs(x, tp, t1) => TypeFun(tp, typeof((x, tp) :: ctx, t1))
     case App(t1, t2) => typeof(ctx, t1) match {
       case TypeFun(t11, t12) =>
-          if (typeof(ctx, t2) == t11)
-            t12
-          else
-            throw TypeError(t, "Types do not match with the function")
+        if (typeof(ctx, t2) == t11)
+          t12
+        else
+          throw TypeError(t, "Types do not match with the function")
       case _ => throw TypeError(t, t1 + " should be a TypeFun")
-      }
+    }
     case TermPair(t1, t2) => TypePair(typeof(ctx, t1), typeof(ctx, t2))
     case First(t1) => typeof(ctx, t1) match {
       case TypePair(tp1, tp2) => tp1
       case _ => throw TypeError(t, t1 + " should be a pair")
-      }
+    }
     case Second(t1) => typeof(ctx, t1) match {
       case TypePair(tp1, tp2) => tp2
       case _ => throw TypeError(t, t1 + " should be a pair")
-      }
+    }
     case Var(x) =>
       try {
         ctx.find(_._1 == x).get._2
