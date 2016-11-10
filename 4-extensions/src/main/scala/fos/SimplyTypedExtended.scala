@@ -56,8 +56,8 @@ object SimplyTypedExtended extends  StandardTokenParsers {
       | "snd" ~> Term ^^ Second
       | "inl" ~ Term ~ "as" ~ Type ^^ {case _ ~ t ~ _ ~ tp => Inl(t, tp)}
       | "inr" ~ Term ~ "as" ~ Type ^^ {case _ ~ t ~ _ ~ tp => Inr(t, tp)}
-      | "case" ~ Term ~ "of inl" ~ ident ~ "=>" ~ Term ~ "| inr" ~ ident ~ "=>" ~ Term
-         ^^ {case _ ~ t ~ _ ~ x1 ~ _ ~ t1 ~ _ ~ x2 ~ _ ~ t2 => Case(t, x1, t1, x2, t2)}
+      | "case" ~ Term ~ "of" ~ "inl" ~ ident ~ "=>" ~ Term ~ "|" ~ "inr" ~ ident ~ "=>" ~ Term
+         ^^ {case _ ~ t ~ _ ~ _ ~ x1 ~ _ ~ t1 ~ _ ~ _ ~ x2 ~ _ ~ t2 => Case(t, x1, t1, x2, t2)}
       | "fix" ~> Term ^^ Fix
       | "letrec" ~ ident ~ ":" ~ Type ~ "=" ~ Term ~ "in" ~ Term ^^ {case _ ~ x ~ _ ~ tp ~ _ ~ t1 ~ _ ~ t2 => App(Abs(x, tp, t2), Fix(Abs(x, tp, t1)))}
   )

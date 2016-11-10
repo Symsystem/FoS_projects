@@ -17,3 +17,20 @@ Submit/
 # Scala-IDE specific
 .scala_dependencies
 .worksheet
+1-arithmetic/Enoncé.html
+1-arithmetic/Enoncé_files/github-light.css
+1-arithmetic/Enoncé_files/scale.fix.js.téléchargement
+1-arithmetic/Enoncé_files/styles.css
+2-untyped/Project 2/src/main/scala/fos/Untyped.scala
+2-untyped/Project 2/src/main/scala/fos/Terms.scala
+2-untyped/Project 2/build.sbt
+2-untyped/Enoncé_files/styles.css
+2-untyped/Enoncé_files/scale.fix.js.téléchargement
+2-untyped/Enoncé_files/github-light.css
+2-untyped/Enoncé.html
+4-extensions/.cache-main
+4-extensions/.classpath
+4-extensions/.project
+4-extensions/.settings/org.eclipse.core.resources.prefs
+4-extensions/project/build.properties
+4-extensions/project/plugins.sbt
