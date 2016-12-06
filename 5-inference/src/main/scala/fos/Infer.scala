@@ -26,19 +26,19 @@ object Infer {
     case Var(x) =>
       try {
         val tps = env.find(_._1 == x).get._2
-        (instanciate(tps), List())
+        (instantiate(tps), List())
       } catch {
-        case _ => throw TypeError("x does not have a type")
+        case _ : Throwable => throw TypeError("x does not have a type")
       }
 
     case Abs(x, tp, t1) =>
       if (tp == EmptyTypeTree()) {
         val fresh_x = freshTypeVar(x)
-        val (tp2, constraint) = collect(List((x, TypeScheme(List(), fresh_x))) ++ env, t1)
-        (FunType(fresh_x, tp2), constraint)
+        val (tp1, constraint) = collect((x, TypeScheme(List(), fresh_x)) :: env, t1)
+        (FunType(fresh_x, tp1), constraint)
       } else {
-        val (tp2, constraint) = collect(List((x, TypeScheme(List(), tp.tpe))) ++ env, t1)
-        (FunType(tp.tpe, tp2), constraint)
+        val (tp1, constraint) = collect((x, TypeScheme(List(), tp.tpe)) :: env, t1)
+        (FunType(tp.tpe, tp1), constraint)
       }
 
     case App(t1, t2) =>
@@ -47,7 +47,7 @@ object Infer {
       val fresh_x = freshTypeVar
       (fresh_x, List((tp1, FunType(tp2, fresh_x))) ++ constraint1 ++ constraint2)
 
-    case Let(x, tp, t1, t2) =>
+    /*case Let(x, tp, t1, t2) =>
       var (tp1, c1) = collect(env, t1)
       if (tp != EmptyTypeTree()) {
         c1 = (tp1, tp.tpe) :: c1
@@ -60,9 +60,9 @@ object Infer {
         (v, TypeScheme(ts.params filter {tpv => isInType(tpv, tsUnified)}, tsUnified))}
       new_env = (x, generalize(tp1, new_env)) :: new_env
       val (tp2, c2) = collect(new_env, t2)
-      (tp2, c2 ++ c1)
+      (tp2, c2 ++ c1)*/
 
-    /*case Let(x, tp, t1, t2) => tp match {
+    case Let(x, tp, t1, t2) => tp match {
       case EmptyTypeTree() =>
         var (tp1, c1) = collect(env, t1)
         def unifyC1 = unify(c1)
@@ -70,11 +70,12 @@ object Infer {
         var new_env = env map {case (v, ts: TypeScheme) =>
           val tsUnified = unifyC1(ts.tp)
           (v, TypeScheme(ts.params filter {tpv => isInType(tpv, tsUnified)}, tsUnified))}
-        new_env = List((x, generalize(tp1, new_env))) ++ new_env
+        new_env = (x, generalize(tp1, new_env)) :: new_env
         val (tp2, c2) = collect(new_env, t2)
         (tp2, c2 ++ c1)
       case _ => collect(env, App(Abs(x, tp, t2), t1))
-    }*/
+    }
+      
     case _ => throw TypeError("Term is stuck !")
   }
 
@@ -109,7 +110,7 @@ object Infer {
     TypeVar(name + counter)
   }
 
-  def instanciate(tps: TypeScheme) : Type = {
+  def instantiate(tps: TypeScheme) : Type = {
     val constraints = tps.params map { tpv => (tpv, freshTypeVar)}
     unify(constraints)(tps.tp)
   }
@@ -138,7 +139,7 @@ object Infer {
   }
 
   def generalize(tp: Type, env: Env) : TypeScheme = {
-    val typeVars = getTypeVars(tp) filter((tpVar) => isInEnv(tpVar, env))
+    val typeVars = getTypeVars(tp) filter((tpVar) => !isInEnv(tpVar, env))
     TypeScheme(typeVars, tp)
   }
 
