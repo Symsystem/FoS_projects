@@ -22,14 +22,15 @@ object Infer {
       val (tp2, constraint2) = collect(env, t2)
       val (tp3, constraint3) = collect(env, t3)
       (tp2, List((tp1, BoolType), (tp2, tp3)) ++ constraint1 ++ constraint2 ++ constraint3)
+
     case Var(x) =>
       try {
-        val tpx = env.find(_._1 == x).get._2.tp
-        (tpx, List())
+        val tps = env.find(_._1 == x).get._2
+        (instanciate(tps), List())
+      } catch {
+        case _ => throw TypeError("x does not hae a type")
       }
-      catch {
-        case _ => throw TypeError(x + " has not type")
-      }
+
     case Abs(x, tp, t1) =>
       if (tp == EmptyTypeTree()) {
         counter += 1
@@ -40,6 +41,7 @@ object Infer {
         val (tp2, constraint) = collect(List((x, TypeScheme(List(), tp.tpe))) ++ env, t1)
         (FunType(tp.tpe, tp2), constraint)
       }
+
     case App(t1, t2) =>
       val (tp1, constraint1) = collect(env, t1)
       val (tp2, constraint2) = collect(env, t2)
@@ -47,24 +49,21 @@ object Infer {
       val fresh_x = TypeVar("X" + counter)
       (fresh_x, List((tp1, FunType(tp2, fresh_x))) ++ constraint1 ++ constraint2)
 
-    case Let(x, tp, t1, t2) => tp match {
-      case EmptyTypeTree() =>
-        var (tp1, c1) = collect(env, t1)
-        def unifyC1 = unify(c1)
-        tp1 = unifyC1(tp1)
-        var new_env = env map {case (x, ts: TypeScheme) => (x, TypeScheme(ts.params, unifyC1(ts.tp)))}
-        new_env ++= List((x, generalize(tp1, new_env)))
-        collect(new_env, t1)
-      case _ => collect(env, App(Abs(x, tp, t2), t1))
-    }
+    case Let(x, tp, t1, t2) =>
+      var (tp1, c1) = collect(env, t1)
+      if (tp != EmptyTypeTree()) c1 = (tp1, tp.tpe) :: c1
+      val unifyC1 = unify(c1)
+      tp1 = unifyC1(tp1)
+      val new_env = env map {case (v, ts: TypeScheme) => (v, TypeScheme(ts.params, unifyC1(ts.tp)))}
+      collect(new_env, t2)
     case _ => throw TypeError("Term is stuck !")
   }
 
   def unify(c: List[Constraint]): Type => Type = c match {
-    case (t1@TypeVar(x), t2@TypeVar(y)) :: xs if t1 == t2 => unify(xs)
+    case (t1@TypeVar(_), t2@TypeVar(_)) :: xs if t1 == t2 => unify(xs)
     case (NatType, NatType) :: xs => unify(xs)
     case (BoolType, BoolType) :: xs => unify(xs)
-    case (tp1@TypeVar(x), tp2) :: xs =>
+    case (tp1@TypeVar(_), tp2) :: xs =>
       if (isInType(tp1, tp2))
         throw TypeError("Error : infinite loop")
       else
@@ -75,25 +74,31 @@ object Infer {
     case _ => throw TypeError("Type error")
   }
 
+  def instanciate(tps: TypeScheme) : Type = {
+    counter += 1
+    val constraints = tps.params map { tpv => (tpv, TypeVar("X" + counter))}
+    unify(constraints)(tps.tp)
+  }
+
   def isInType(t: TypeVar, tree: Type): Boolean = tree match {
-    case TypeVar(x) => t == tree
+    case TypeVar(_) => t == tree
     case FunType(tp1, tp2) => isInType(t, tp1) || isInType(t, tp2)
     case _ => false
   }
 
   def isInEnv(t: TypeVar, env: Env): Boolean = env match {
-    case (str, tpScheme)::xs => if (tpScheme.tp == t) true else isInEnv(t, xs)
+    case (_, tpScheme)::xs => if (tpScheme.tp == t) true else isInEnv(t, xs)
     case _ => false
    }
 
   /**
-    * @param s
-    * @param t1
-    * @param t2
-    * @return
+    * @param s is the TypeVar that will be replaced
+    * @param t1 is the type that will replace every instance of s
+    * @param t2 is the type in which we replace all instances of s.
+    * @return [s -> t1] t2
     */
   def sub(s: TypeVar)(t1: Type)(t2: Type): Type = t2 match {
-    case t@TypeVar(x) => if (t == s) t1 else t2
+    case t@TypeVar(_) => if (t == s) t1 else t2
     case FunType(subT1, subT2) => FunType(sub(s)(t1)(subT1), sub(s)(t1)(subT2))
     case _ => t2
   }
