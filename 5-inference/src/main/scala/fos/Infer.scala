@@ -12,11 +12,11 @@ object Infer {
   var counter = 0
 
   def collect(env: Env, t: Term): (Type, List[Constraint]) = t match {
-    case True() | False() => (BoolType, List())
-    case Zero() => (NatType, List())
-    case Pred(t1) => val (tp1, constraint) = collect(env, t1); (NatType, List((tp1, NatType)) ++ constraint)
-    case Succ(t1) => val (tp1, constraint) = collect(env, t1); (NatType, List((tp1, NatType)) ++ constraint)
-    case IsZero(t1) => val (tp1, constraint) = collect(env, t1); (BoolType, List((tp1, NatType)) ++ constraint)
+    case True() | False() => (BoolType, Nil)
+    case Zero() => (NatType, Nil)
+    case Pred(t1) => val (tp1, constraint) = collect(env, t1); (NatType, (tp1, NatType) :: constraint)
+    case Succ(t1) => val (tp1, constraint) = collect(env, t1); (NatType, (tp1, NatType) :: constraint)
+    case IsZero(t1) => val (tp1, constraint) = collect(env, t1); (BoolType, (tp1, NatType) :: constraint)
     case If(t1, t2, t3) =>
       val (tp1, constraint1) = collect(env, t1)
       val (tp2, constraint2) = collect(env, t2)
@@ -26,7 +26,7 @@ object Infer {
     case Var(x) =>
       try {
         val tps = env.find(_._1 == x).get._2
-        (instantiate(tps), List())
+        (instantiate(tps), Nil)
       } catch {
         case _ : Throwable => throw TypeError("x does not have a type")
       }
@@ -34,10 +34,10 @@ object Infer {
     case Abs(x, tp, t1) =>
       if (tp == EmptyTypeTree()) {
         val fresh_x = freshTypeVar(x)
-        val (tp1, constraint) = collect((x, TypeScheme(List(), fresh_x)) :: env, t1)
+        val (tp1, constraint) = collect((x, TypeScheme(Nil, fresh_x)) :: env, t1)
         (FunType(fresh_x, tp1), constraint)
       } else {
-        val (tp1, constraint) = collect((x, TypeScheme(List(), tp.tpe)) :: env, t1)
+        val (tp1, constraint) = collect((x, TypeScheme(Nil, tp.tpe)) :: env, t1)
         (FunType(tp.tpe, tp1), constraint)
       }
 
@@ -46,21 +46,6 @@ object Infer {
       val (tp2, constraint2) = collect(env, t2)
       val fresh_x = freshTypeVar
       (fresh_x, List((tp1, FunType(tp2, fresh_x))) ++ constraint1 ++ constraint2)
-
-    /*case Let(x, tp, t1, t2) =>
-      var (tp1, c1) = collect(env, t1)
-      if (tp != EmptyTypeTree()) {
-        c1 = (tp1, tp.tpe) :: c1
-        tp1 = tp.tpe
-      }
-      val unifyC1 = unify(c1)
-      tp1 = unifyC1(tp1)
-      var new_env = env map {case (v, ts: TypeScheme) =>
-        val tsUnified = unifyC1(ts.tp)
-        (v, TypeScheme(ts.params filter {tpv => isInType(tpv, tsUnified)}, tsUnified))}
-      new_env = (x, generalize(tp1, new_env)) :: new_env
-      val (tp2, c2) = collect(new_env, t2)
-      (tp2, c2 ++ c1)*/
 
     case Let(x, tp, t1, t2) => tp match {
       case EmptyTypeTree() =>
@@ -110,6 +95,9 @@ object Infer {
     TypeVar(name + counter)
   }
 
+  /**
+    * @return the unification of the typeScheme tps instantiated.
+    */
   def instantiate(tps: TypeScheme) : Type = {
     val constraints = tps.params map { tpv => (tpv, freshTypeVar)}
     unify(constraints)(tps.tp)
@@ -130,7 +118,7 @@ object Infer {
     * @param s is the TypeVar that will be replaced
     * @param t1 is the type that will replace every instance of s
     * @param t2 is the type in which we replace all instances of s.
-    * @return [s -> t1] t2
+    * @return the result of the substitution : [s -> t1] t2
     */
   def sub(s: TypeVar)(t1: Type)(t2: Type): Type = t2 match {
     case t@TypeVar(_) => if (t == s) t1 else t2
@@ -138,17 +126,26 @@ object Infer {
     case _ => t2
   }
 
+  /**
+    * @return the typeScheme generalized based on the type tp and the environment env
+    */
   def generalize(tp: Type, env: Env) : TypeScheme = {
     val typeVars = getTypeVars(tp) filter((tpVar) => !isInEnv(tpVar, env))
     TypeScheme(typeVars, tp)
   }
 
+  /**
+    * @return a list containing every the TypeVar presents in tp
+    */
   def getTypeVars(tp: Type): List[TypeVar] = tp match {
     case tpv@TypeVar(_) => List(tpv)
     case FunType(t1, t2) => getTypeVars(t1) ++ getTypeVars(t2)
     case _ => Nil
   }
 
+  /**
+    * @return true if t is in env, otherwise false.
+    */
   def isInEnv(t: TypeVar, env: Env): Boolean = env match {
     case (_, tpScheme)::xs => tpScheme.tp match {
       case tpv@TypeVar(_) if tpv == t => true
